@@ -4,144 +4,164 @@
 #include <Adafruit_PN532.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <WebServer.h>
+#include <vector>
 
-// OLED display configuration
-#define SCREEN_WIDTH 128         // OLED width in pixels
-#define SCREEN_HEIGHT 64         // OLED height in pixels
-#define OLED_RESET    -1         // No reset pin used for OLED
+// OLED display setup
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+#define OLED_RESET    -1
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-// PN532 NFC module using I2C (SDA = GPIO21, SCL = GPIO22)
+// NFC module setup (I2C)
 Adafruit_PN532 nfc(21, 22);
 
-// Store the last scanned UID
+// WiFi reset button
+#define RESET_BUTTON_PIN 4
+
+// Web server setup
+WebServer server(80);
+
+// UID history
+struct UIDEntry {
+  String uid;
+  String timestamp;
+};
+std::vector<UIDEntry> uidHistory;
+
+// Last UID
 String lastUID = "None";
 
-// Define reset button pin for WiFi credentials
-#define RESET_BUTTON_PIN 4       // Use GPIO 4 for reset button
-
-// Function to display messages on the OLED screen
+// Show message on OLED
 void showOLEDMessage(String line1, String line2 = "", String line3 = "") {
   display.clearDisplay();
-  display.setTextSize(1);  // Set text size
+  display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
 
   int lineHeight = 10;
   int y = 0;
 
-  // Display each line if not empty
-  if (line1 != "") {
-    display.setCursor(0, y);
-    display.println(line1);
-    y += lineHeight;
-  }
-  if (line2 != "") {
-    display.setCursor(0, y);
-    display.println(line2);
-    y += lineHeight;
-  }
-  if (line3 != "") {
-    display.setCursor(0, y);
-    display.println(line3);
-  }
+  if (line1 != "") { display.setCursor(0, y); display.println(line1); y += lineHeight; }
+  if (line2 != "") { display.setCursor(0, y); display.println(line2); y += lineHeight; }
+  if (line3 != "") { display.setCursor(0, y); display.println(line3); }
 
   display.display();
 }
 
-void setup() {
-  Serial.begin(115200);        // Start serial communication
-  delay(1000);                 // Small delay for startup
+// Create web HTML content
+String generateHTML() {
+  String html = "<!DOCTYPE html><html><head><title>NFC Card Reader</title><meta name='viewport' content='width=device-width, initial-scale=1'>";
+  html += "<style>body{font-family:Arial;}table,th,td{border:1px solid black;border-collapse:collapse;padding:5px;}</style>";
+  html += "</head><body>";
+  html += "<h2>NFC Card Reader</h2>";
+  html += "<p><b>Device IP:</b> " + WiFi.localIP().toString() + "</p>";
+  html += "<p><b>Signal Strength (RSSI):</b> " + String(WiFi.RSSI()) + " dBm</p>";
+  html += "<p><b>System Status:</b> Working Fine ✅</p>";
+  html += "<h3>Scan History</h3><table><tr><th>UID</th><th>Timestamp</th></tr>";
 
-  Wire.begin(21, 22);          // Initialize I2C communication
-
-  // Initialize OLED display
-  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
-    Serial.println("SSD1306 initialization failed");
-    while (1); // Halt if OLED fails
+  for (auto entry : uidHistory) {
+    html += "<tr><td>" + entry.uid + "</td><td>" + entry.timestamp + "</td></tr>";
   }
 
-  display.setTextColor(SSD1306_WHITE);
-  showOLEDMessage("NFC Card Reader", "Booting...");
+  html += "</table><br>";
+  html += "<form action='/clear' method='POST'><button type='submit'>Clear History</button></form>";
+  html += "</body></html>";
+  return html;
+}
 
-  // Configure reset button
+// Setup function
+void setup() {
+  Serial.begin(115200);
+  Wire.begin(21, 22);
+
+  // OLED init
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println("OLED failed");
+    while (1);
+  }
+
+  showOLEDMessage("NFC Reader", "Booting...");
+
+  // WiFi Reset Button
   pinMode(RESET_BUTTON_PIN, INPUT_PULLUP);
-
-  // Reset WiFi credentials if reset button is pressed
   if (digitalRead(RESET_BUTTON_PIN) == LOW) {
-    Serial.println("Reset button pressed. Clearing WiFi settings...");
     showOLEDMessage("WiFi Reset", "Clearing settings...");
-    delay(2000);
-
     WiFiManager wifiManager;
     wifiManager.resetSettings();
-    ESP.restart();  // Restart to apply changes
+    delay(2000);
+    ESP.restart();
   }
 
-  // Connect to WiFi using WiFiManager
+  // Connect WiFi
   WiFiManager wifiManager;
-  if (!wifiManager.autoConnect("NFC Card Reader")) {  // WiFi will be named "NFC Card Reader"
-    Serial.println("WiFi connection failed");
+  if (!wifiManager.autoConnect("NFC Card Reader")) {
     showOLEDMessage("WiFi Failed", "Please restart");
     delay(5000);
-    ESP.restart();  // Restart on failure
+    ESP.restart();
   }
 
-  // Display connection info
-  Serial.println("WiFi Connected");
-  Serial.print("IP Address: ");
+  Serial.print("IP: ");
   Serial.println(WiFi.localIP());
-
   showOLEDMessage("WiFi Connected", "IP:", WiFi.localIP().toString());
-  delay(3000);
+  delay(5000);  // Show IP on OLED for 5 sec
 
-  // Initialize NFC module
+  // Init NFC
   nfc.begin();
   uint32_t versiondata = nfc.getFirmwareVersion();
   if (!versiondata) {
-    Serial.println("PN532 not detected");
     showOLEDMessage("NFC Not Found", "Check wiring");
-    while (1); // Halt if NFC not found
+    while (1);
   }
-
-  nfc.SAMConfig();  // Configure NFC for card reading
-  Serial.println("NFC Ready");
+  nfc.SAMConfig();
   showOLEDMessage("NFC Reader", "Waiting for tap");
+
+  // Setup WebServer
+  server.on("/", []() {
+    server.send(200, "text/html", generateHTML());
+  });
+
+  server.on("/clear", HTTP_POST, []() {
+    uidHistory.clear();
+    server.send(200, "text/html", "<p>History cleared. <a href='/'>Go Back</a></p>");
+  });
+
+  server.begin();
+  Serial.println("Web server started");
 }
 
-void loop() {
-  uint8_t uid[7];          // Buffer to store UID
-  uint8_t uidLength;       // Length of UID
+// Get timestamp (basic approximation)
+String getTimestamp() {
+  time_t now = millis() / 1000;
+  int mins = now / 60;
+  int secs = now % 60;
+  return String(mins) + "m " + String(secs) + "s";
+}
 
-  // Check for NFC card
+// Main loop
+void loop() {
+  server.handleClient();
+
+  uint8_t uid[7];
+  uint8_t uidLength;
+
   if (nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength)) {
-    Serial.println("\nNFC Card Detected");
-    Serial.print("UID: ");
+    Serial.println("NFC Card Detected");
 
     lastUID = "";
     for (uint8_t i = 0; i < uidLength; i++) {
       char hex[4];
-      sprintf(hex, "%02X ", uid[i]);  // Convert UID to hex string
-      Serial.print(hex);
+      sprintf(hex, "%02X ", uid[i]);
       lastUID += hex;
     }
-    Serial.println();
 
-    // Display UID on OLED
-    if (lastUID != "") {
-      showOLEDMessage("Card Detected", "UID:", lastUID);
-    } else {
-      showOLEDMessage("Error", "Invalid UID");
-    }
+    String timestamp = getTimestamp();
+    uidHistory.push_back({lastUID, timestamp});
+
+    showOLEDMessage("Card Detected", "UID:", lastUID);
     delay(3000);
-
-    // Return to idle state
     showOLEDMessage("NFC Reader", "Waiting for tap");
   }
 
-  delay(200);  // Small delay between reads
+  delay(200);
 }
-
-/*
- * Developed by Yousuf Humran
- * NFC Card Reader Project
- */
+//developed by Yousuf Humran
