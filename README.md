@@ -1,6 +1,6 @@
 # NFC Card Reader
 
-**NFC Card Reader** is a simple and lightweight NFC card reader system built with ESP32, PN532, and an OLED display. This project allows you to read NFC cards and display the unique UID of each card on the OLED screen, making it ideal for access control, authentication systems, or any NFC-related applications.
+It is a simple and lightweight NFC card reader system built with ESP32, PN532, and an OLED display. This project allows you to read NFC cards and display the unique UID of each card on the OLED screen, making it ideal for access control, authentication systems, or any NFC-related applications.
 
 ---
 
