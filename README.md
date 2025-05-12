@@ -101,7 +101,7 @@ The device will use **WiFiManager** to connect to a WiFi network. On boot, if th
 
 ---
 
-# TapLink NFC Reader OLED Output
+# NFC Reader OLED Output
 
 ## 1. Startup
 - **Message**: "TapLink" and "Booting..."
