@@ -1,3 +1,4 @@
+
 # NFC Card Reader
 
 It is a simple and lightweight NFC card reader system built with ESP32, PN532, and an OLED display. This project allows you to read NFC cards and display the unique UID of each card on the OLED screen, making it ideal for access control, authentication systems, or any NFC-related applications.
@@ -11,6 +12,7 @@ It is a simple and lightweight NFC card reader system built with ESP32, PN532, a
 - Supports real-time card detection and feedback
 - Simple and efficient setup using ESP32
 - **Push Button Reset**: Allows resetting the WiFi connection
+- **Web Server**: Provides a web interface to view NFC scan history and device details
 
 ---
 
@@ -62,6 +64,11 @@ It is a simple and lightweight NFC card reader system built with ESP32, PN532, a
    - The UID of the card is shown on the OLED display.
 4. If no card is detected, the display continues showing "Waiting for tap."
 5. **Push Button Reset**: Pressing the button resets the WiFi configuration and initiates the WiFiManager to reconnect to a WiFi network.
+6. **Web Server**: The device provides a web interface that displays:
+   - The device’s IP address
+   - Signal strength (RSSI)
+   - A history of NFC card scans, with UID and timestamps
+   - A button to clear the scan history
 
 ---
 
@@ -92,6 +99,9 @@ It is a simple and lightweight NFC card reader system built with ESP32, PN532, a
 
 4. **WiFiManager**  
    - Library to simplify WiFi connection management.
+
+5. **WebServer**  
+   - Library for setting up the web server and handling requests.
 
 ---
 
@@ -145,6 +155,13 @@ The device will use **WiFiManager** to connect to a WiFi network. On boot, if th
   Waiting for tap
   ```
 
+## 5. Web Interface
+- **Webpage Contents**:
+  - Displays the device's IP and RSSI (signal strength).
+  - Shows the scan history with UID and timestamp.
+  - Allows the user to clear the scan history.
+
+---
+
 ## Developed by  
 **Yousuf Humran**
-
