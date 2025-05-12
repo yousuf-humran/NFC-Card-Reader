@@ -10,6 +10,8 @@
 - Displays the unique UID of the card on an OLED screen
 - Supports real-time card detection and feedback
 - Simple and efficient setup using ESP32
+- **Portable**: Powered by a small Li-ion or Li-Po battery
+- **Power Control**: On/Off switch for easy power management
 
 ---
 
@@ -20,6 +22,10 @@
 | ESP32             | Microcontroller                    |
 | PN532 NFC Module  | NFC card reader module (I2C interface) |
 | OLED Display      | 128x64 I2C OLED display            |
+| Li-ion/Li-Po Battery | 3.7V battery for portability        |
+| TP4056 Charging Module | For safe battery charging         |
+| MT3608 Step-Up Converter | To boost battery voltage to 5V |
+| On/Off Switch     | For power control                  |
 
 ---
 
@@ -42,6 +48,15 @@
 | GND      | GND       |
 | SDA      | GPIO21    |
 | SCL      | GPIO22    |
+
+### Battery and Power Setup
+
+| Component                 | Description                        |
+|---------------------------|------------------------------------|
+| Li-ion/Li-Po Battery       | Provides 3.7V power               |
+| TP4056 Charging Module    | Manages charging of the battery   |
+| MT3608 Step-Up Converter  | Boosts voltage to 5V for ESP32 and PN532 |
+| On/Off Switch             | Controls power to the system      |
 
 ---
 
